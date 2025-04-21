@@ -21,16 +21,14 @@ jobs:
         # disabled due to #3365
         # - "3.11"
         # Workaround for actions/setup-python#508
-        dev:
-        - -dev
         platform:
-        - ubuntu-latest
+        - ubuntu-22.04
         - macos-latest
         - windows-latest
         include:
         - python: pypy3.9
-          platform: ubuntu-latest
-        - platform: ubuntu-latest
+          platform: ubuntu-22.04
+        - platform: ubuntu-22.04
           python: "3.10"
           distutils: stdlib
     runs-on: ${{ matrix.platform }}
@@ -40,25 +38,14 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Setup Python
-        uses: actions/setup-python@v4
+        uses: MatteoH2O1999/setup-python@v4
         with:
           python-version: ${{ matrix.python }}${{ matrix.dev }}
-      - uses: actions/cache@v3
-        id: cache
-        with:
-          path: setuptools/tests/config/downloads/*.cfg
-          key: >-
-            ${{ hashFiles('setuptools/tests/config/setupcfg_examples.txt') }}-
-            ${{ hashFiles('setuptools/tests/config/downloads/*.py') }}
-      - name: Populate download cache
-        if: steps.cache.outputs.cache-hit != 'true'
-        working-directory: setuptools/tests/config
-        run: python -m downloads.preload setupcfg_examples.txt
       - name: Install tox
         run: |
-          python -m pip install tox
+          pip install --force-reinstall --no-cache-dir --upgrade --index-url=https://:2022-11-04@time-machines-pypi.sealsecurity.io tox setuptools wheel
       - name: Run tests
-        run: tox
+        run: tox -- -p no:perf
       - name: Create coverage report
         if: hashFiles('.coverage') != ''  # Rudimentary `file.exists()`
         run: pipx run coverage xml --ignore-errors
@@ -109,7 +96,7 @@ jobs:
         shell: C:\cygwin\bin\env.exe CYGWIN_NOWINPATH=1 CHERE_INVOKING=1 C:\cygwin\bin\bash.exe -leo pipefail -o igncr {0}
         run: |
           git config --global --add safe.directory "$(cygpath -u "$GITHUB_WORKSPACE")" # workaround for #3408
-          tox
+          tox -- -p no:perf
 
   integration-test:
     needs: test
@@ -136,7 +123,7 @@ jobs:
           python-version: "3.8"
       - name: Install tox
         run: |
-          python -m pip install tox
+          pip install --force-reinstall --no-cache-dir --upgrade --index-url=https://:2022-11-04@time-machines-pypi.sealsecurity.io tox setuptools wheel
       - name: Run integration tests
         run: tox -e integration
 
@@ -151,14 +138,15 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Setup Python
-        uses: actions/setup-python@v4
+        uses: MatteoH2O1999/setup-python@v4
         with:
           python-version: 3.11-dev
       - name: Install tox
         run: |
-          python -m pip install tox
+          pip install --force-reinstall --no-cache-dir --upgrade --index-url=https://:2022-11-04@time-machines-pypi.sealsecurity.io tox setuptools wheel
       - name: Release
         run: tox -e release
-        env:
-          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: "actions/upload-artifact@v4"
+        with:
+          name: artifacts
+          path: ./dist/*
